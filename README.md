@@ -109,9 +109,43 @@ intimacy-coordinator/
 | `STT_URL` | `http://host.docker.internal:8090` | Speech-to-text service |
 | `OLLAMA_MODEL` | `dolphin-mistral` | LLM model name |
 
-## 📋 API Endpoints
+## ⚠️ Safety / Exposure Notes
 
-| Method | Endpoint | Description |
+**IMPORTANT: This application is designed for local/LAN use only. Follow these security guidelines:**
+
+### 🔒 Don't Expose Real IPs
+- **Never** publish your real LAN/WAN IP addresses in config files or documentation
+- Use the placeholders from `.env.example` for configuration
+- Keep your actual `.env` file private and never commit it to git
+
+### 🚫 Port Forwarding Warning
+- **DO NOT** port-forward these services to the public internet:
+  - Port 8000 (FastAPI backend)
+  - Port 8880 (TTS service)
+  - Port 8090 (STT service)  
+  - Port 11434 (Ollama)
+- These services are NOT designed for public exposure and lack production-grade security
+
+### 🌐 Remote Access (If Required)
+If you need remote access, use **secure alternatives**:
+- **VPN Solutions**: WireGuard, Tailscale, or similar
+- **Reverse Proxy**: nginx/Caddy with authentication + HTTPS
+- **Never** expose ports directly to the internet
+
+### 🔐 CORS Configuration
+- The default `ALLOWED_ORIGINS` uses localhost for development
+- For production or multi-device access, set exact domain(s) in your private `.env`:
+  ```
+  ALLOWED_ORIGINS=https://your-domain.com,https://app.your-domain.com
+  ```
+- **Never** use `*` (wildcard) in production - it allows any website to access your API
+
+### 📝 Environment Files
+- Copy `.env.example` to `.env` for local configuration
+- The `.env` file is gitignored - it will NOT be committed
+- Never commit secrets, tokens, or real IP addresses to the repository
+
+## 📋 API Endpoints
 |--------|----------|-------------|
 | `POST` | `/api/room` | Create or join a room |
 | `GET` | `/api/room/{code}` | Get room status |
