@@ -146,6 +146,8 @@ If you need remote access, use **secure alternatives**:
 - Never commit secrets, tokens, or real IP addresses to the repository
 
 ## 📋 API Endpoints
+
+| Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/room` | Create or join a room |
 | `GET` | `/api/room/{code}` | Get room status |
