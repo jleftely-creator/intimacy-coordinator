@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  kink-app:
+    build: .
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # CRITICAL: lets container see Ollama on host
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=dark-reasoning-8b
+      - TTS_URL=http://host.docker.internal:8880/v1
+      - STT_URL=http://host.docker.internal:8090
+    restart: unless-stopped
