@@ -11,10 +11,11 @@ import os
 
 app = FastAPI(title="Intimacy Coordinator API")
 
-# CORS for local development
+# CORS configuration from environment
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://localhost:5173").split(",")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
