@@ -20,7 +20,7 @@ const PLACEHOLDERS = [
 ];
 
 const DEFAULT_PARAMS = {
-    temperature: 1.2,
+    temperature: 1.1,
     max_tokens: 4096,
     top_k: 80,
     top_p: 0.95,
@@ -31,12 +31,20 @@ const DEFAULT_PARAMS = {
     repeat_penalty: 1.1
 };
 
+const TEMPLATES_KEY = 'prompt_templates';
+
 const PromptEditor = ({ onSave }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [template, setTemplate] = useState('');
     const [showPreview, setShowPreview] = useState(false);
     const [showParams, setShowParams] = useState(false);
     const [params, setParams] = useState(DEFAULT_PARAMS);
+
+    // Template Library State
+    const [savedTemplates, setSavedTemplates] = useState([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+    const [isNaming, setIsNaming] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState('');
 
     useEffect(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -45,6 +53,12 @@ const PromptEditor = ({ onSave }) => {
         const savedParams = localStorage.getItem(PARAMS_STORAGE_KEY);
         if (savedParams) {
             setParams(JSON.parse(savedParams));
+        }
+
+        // Load templates library
+        const library = localStorage.getItem(TEMPLATES_KEY);
+        if (library) {
+            setSavedTemplates(JSON.parse(library));
         }
     }, []);
 
@@ -95,12 +109,52 @@ Generate a scene with:
         setIsOpen(false);
     };
 
+    const handleSaveAsNew = () => {
+        if (!newTemplateName) return;
+
+        const newTemplate = {
+            id: Date.now().toString(),
+            name: newTemplateName,
+            content: template,
+            params: params
+        };
+
+        const updated = [...savedTemplates, newTemplate];
+        setSavedTemplates(updated);
+        localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+
+        // Select it
+        setSelectedTemplateId(newTemplate.id);
+        setIsNaming(false);
+        setNewTemplateName('');
+    };
+
+    const handleLoadTemplate = (id) => {
+        const temp = savedTemplates.find(t => t.id === id);
+        if (temp) {
+            setTemplate(temp.content);
+            if (temp.params) setParams(temp.params);
+            setSelectedTemplateId(id);
+        } else {
+            setSelectedTemplateId('');
+        }
+    };
+
+    const handleDeleteTemplate = (e, id) => {
+        e.stopPropagation();
+        const updated = savedTemplates.filter(t => t.id !== id);
+        setSavedTemplates(updated);
+        localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+        if (selectedTemplateId === id) setSelectedTemplateId('');
+    };
+
     const handleReset = () => {
         const def = getDefaultTemplate();
         setTemplate(def);
         setParams(DEFAULT_PARAMS);
         localStorage.setItem(STORAGE_KEY, def);
         localStorage.setItem(PARAMS_STORAGE_KEY, JSON.stringify(DEFAULT_PARAMS));
+        setSelectedTemplateId('');
     };
 
     const insertPlaceholder = (key) => {
@@ -124,7 +178,33 @@ Generate a scene with:
             <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                    <h3 className="font-bold text-gray-100">Prompt Template</h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-bold text-gray-100">Prompt Editor</h3>
+
+                        {/* Template Selector */}
+                        <div className="relative group">
+                            <select
+                                value={selectedTemplateId}
+                                onChange={(e) => handleLoadTemplate(e.target.value)}
+                                className="bg-gray-800 text-xs text-gray-300 border border-gray-700 rounded px-2 py-1 pr-8 appearance-none focus:outline-none focus:border-pink-500 w-40"
+                            >
+                                <option value="">Custom / Default</option>
+                                {savedTemplates.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                            {selectedTemplateId && (
+                                <button
+                                    onClick={(e) => handleDeleteTemplate(e, selectedTemplateId)}
+                                    className="absolute right-6 top-1.5 text-red-400 hover:text-red-300"
+                                    title="Delete Template"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowParams(!showParams)}
@@ -322,18 +402,45 @@ Generate a scene with:
                     </button>
 
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                        >
-                            Cancel
-                        </button>
+                        {isNaming ? (
+                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Template Name..."
+                                    value={newTemplateName}
+                                    onChange={e => setNewTemplateName(e.target.value)}
+                                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                                />
+                                <button
+                                    onClick={handleSaveAsNew}
+                                    disabled={!newTemplateName}
+                                    className="p-2 bg-green-600 hover:bg-green-500 text-white rounded"
+                                >
+                                    <Save size={14} />
+                                </button>
+                                <button
+                                    onClick={() => setIsNaming(false)}
+                                    className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setIsNaming(true)}
+                                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors border border-gray-700 rounded-lg hover:bg-gray-800"
+                            >
+                                Save As...
+                            </button>
+                        )}
+
                         <button
                             onClick={handleSave}
                             className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg text-sm font-medium transition-colors"
                         >
                             <Save size={14} />
-                            Save Template
+                            Save
                         </button>
                     </div>
                 </div>

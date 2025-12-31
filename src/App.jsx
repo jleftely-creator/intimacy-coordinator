@@ -50,7 +50,7 @@ const App = () => {
             <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
               Scene Architect
             </span>
-            <span className="text-[10px] sm:text-xs font-mono text-gray-600 ml-1 sm:ml-2 align-top">v2.1</span>
+            <span className="text-[10px] sm:text-xs font-mono text-pink-500 ml-1 sm:ml-2 align-top badge-pulse">v2.2 (Strict)</span>
           </h1>
 
           {view !== 'loadout' && (

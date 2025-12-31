@@ -34,7 +34,8 @@ const MegaSelector = ({
     storageKey,
     onSelectionChange,
     demonMode = false,
-    allowCustom = true
+    allowCustom = true,
+    resetTrigger = 0
 }) => {
     // Item states: { itemName: 'neutral'|'wants'|'okay'|'not' }
     const [itemStates, setItemStates] = useState(() => {
@@ -60,6 +61,14 @@ const MegaSelector = ({
     const [addingTo, setAddingTo] = useState(null);
     const [newItemName, setNewItemName] = useState('');
 
+    // Handle external reset
+    useEffect(() => {
+        if (resetTrigger > 0) {
+            setItemStates({});
+            setCustomItems({});
+        }
+    }, [resetTrigger]);
+
     // Persist states
     useEffect(() => {
         localStorage.setItem(`${storageKey}_states`, JSON.stringify(itemStates));
@@ -80,6 +89,20 @@ const MegaSelector = ({
     useEffect(() => {
         localStorage.setItem(`custom_${storageKey}`, JSON.stringify(customItems));
     }, [customItems, storageKey]);
+
+    // Force sync on mount
+    useEffect(() => {
+        const output = {
+            wants: [],
+            okay: [],
+            not: []
+        };
+        Object.entries(itemStates).forEach(([item, state]) => {
+            if (output[state]) output[state].push(item);
+        });
+        onSelectionChange?.(output);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const cycleState = useCallback((item) => {
         setItemStates(prev => {
@@ -105,6 +128,17 @@ const MegaSelector = ({
             return { ...prev, [item]: next };
         });
     }, [demonMode]);
+
+    const handleReset = () => {
+        if (!window.confirm('Clear all selections? This will reset everything to neutral.')) return;
+
+        // Setting to empty object defaults to neutral in cycleState logic
+        const newStates = {};
+        setItemStates(newStates);
+
+        // Also clear custom items
+        setCustomItems({});
+    };
 
     const toggleCategory = (catKey) => {
         setExpandedCats(prev => ({ ...prev, [catKey]: !prev[catKey] }));
@@ -214,6 +248,12 @@ const MegaSelector = ({
                         {totalActive} active
                     </span>
                 </div>
+                <button
+                    onClick={handleReset}
+                    className="text-xs text-gray-500 hover:text-white px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                >
+                    Reset
+                </button>
             </div>
 
             {/* State Legend */}

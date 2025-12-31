@@ -11,4 +11,8 @@ services:
       - OLLAMA_MODEL=dark-reasoning-8b
       - TTS_URL=http://host.docker.internal:8880/v1
       - STT_URL=http://host.docker.internal:8090
+      - HOST_MODELS_PATH=F:\\TITAN_MODELS
+    volumes:
+      - F:\TITAN_MODELS:/models:ro
+      - ./dist:/app/static
     restart: unless-stopped

@@ -95,11 +95,27 @@ class ApiClient {
 
     // ============ AI GENERATION (Ollama) ============
 
+    async getOllamaTags() {
+        return this.request('/models/tags');
+    }
+
+    async getModelFiles() {
+        return this.request('/models/files');
+    }
+
+    async loadModel(filename, modelName) {
+        return this.request('/models/load', {
+            method: 'POST',
+            body: JSON.stringify({ filename, model_name: modelName })
+        });
+    }
+
     async generateWithAI(prompt, params = {}) {
         return this.request('/llm', {
             method: 'POST',
             body: JSON.stringify({
                 prompt: prompt,
+                model: params.model, // Pass selected model
                 temperature: params.temperature || 1.2,
                 max_tokens: params.max_tokens || 4096,
                 top_p: params.top_p || 0.95,

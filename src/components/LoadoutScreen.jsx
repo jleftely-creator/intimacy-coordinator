@@ -7,6 +7,7 @@ import TogetherMode from './TogetherMode';
 import SettingsManager from './SettingsManager';
 import PromptEditor from './PromptEditor';
 import NoGoListEditor from './NoGoListEditor';
+import ModelSelector from './ModelSelector';
 import { Sparkles, Wifi, BookOpen } from 'lucide-react';
 import api from '../utils/api';
 
@@ -21,6 +22,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
 
     const [role, setRole] = useState(() => localStorage.getItem('user_role') || 'switch');
     const [intensity, setIntensity] = useState(() => localStorage.getItem('user_intensity') || 'adventurous');
+    const [selectedModel, setSelectedModel] = useState(null); // Selected Ollama model
 
     // Room/Together state
     const [roomCode, setRoomCode] = useState(null);
@@ -29,6 +31,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
     const [togetherPhase, setTogetherPhase] = useState('partner_a');
     const [togetherData, setTogetherData] = useState(null);
     const [syncing, setSyncing] = useState(false);
+    const [resetTrigger, setResetTrigger] = useState(0);
 
     // Persist
     useEffect(() => {
@@ -92,7 +95,8 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 partnerA: togetherData.partnerA,
                 partnerB: togetherData.partnerB,
                 intensity,
-                merged: true
+                merged: true,
+                model: selectedModel
             };
         } else {
             payload = {
@@ -102,7 +106,8 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 kinks,
                 setting,
                 intensity,
-                solo: true
+                solo: true,
+                model: selectedModel
             };
         }
 
@@ -157,6 +162,9 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 <NoGoListEditor />
             </div>
 
+            {/* Model Selector */}
+            <ModelSelector selectedModel={selectedModel} onModelSelect={setSelectedModel} />
+
             {/* Room Manager */}
             <RoomManager
                 onRoomJoined={handleRoomJoined}
@@ -175,6 +183,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                     setOutfit({ wants: [], okay: [], not: [] });
                     setKinks({ wants: [], okay: [], not: [] });
                     setSetting({ wants: [], okay: [], not: [] });
+                    setResetTrigger(prev => prev + 1);
                 }}
             />
 
@@ -213,6 +222,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 storageKey="user_inventory_v2"
                 onSelectionChange={setInventory}
                 demonMode={isDemonMode}
+                resetTrigger={resetTrigger}
             />
 
             <MegaSelector
@@ -221,6 +231,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 storageKey="user_outfit_v2"
                 onSelectionChange={setOutfit}
                 demonMode={isDemonMode}
+                resetTrigger={resetTrigger}
             />
 
             <MegaSelector
@@ -229,6 +240,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 storageKey="user_setting_v2"
                 onSelectionChange={setSetting}
                 demonMode={isDemonMode}
+                resetTrigger={resetTrigger}
             />
 
             <MegaSelector
@@ -237,6 +249,7 @@ const LoadoutScreen = ({ onGenerate, onShowLibrary }) => {
                 storageKey="user_kinks_v2"
                 onSelectionChange={setKinks}
                 demonMode={isDemonMode}
+                resetTrigger={resetTrigger}
             />
 
             {/* Floating Action Buttons */}

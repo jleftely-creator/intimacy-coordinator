@@ -3,7 +3,7 @@ import { generateScene } from '../utils/generator';
 import { saveScenario } from './ScenarioLibrary';
 import api from '../utils/api';
 import { getAIParams } from './PromptEditor';
-import { Loader2, Flame, Zap, Skull, Smile, Save, Check, Copy, Send, Volume2, VolumeX, Mic, MicOff, ArrowRight, Trash2 } from 'lucide-react';
+import { Loader2, Flame, Zap, Skull, Smile, Save, Check, Copy, Send, Volume2, VolumeX, Mic, MicOff, ArrowRight, Trash2, Bug } from 'lucide-react';
 
 const intensityIcons = {
     casual: Smile,
@@ -28,6 +28,8 @@ const SceneDisplay = ({ data }) => {
     const [copied, setCopied] = useState(false);
     const [userInput, setUserInput] = useState('');
     const [sending, setSending] = useState(false);
+    const [showDebug, setShowDebug] = useState(false);
+    const [debugInfo, setDebugInfo] = useState(null);
 
     // TTS/STT toggles
     const [ttsEnabled, setTtsEnabled] = useState(false);
@@ -73,9 +75,11 @@ const SceneDisplay = ({ data }) => {
                 }
 
                 // Generate initial scene
-                const text = await generateScene(data);
+                const { text, prompt, debugData } = await generateScene(data);
+
                 if (mounted) {
                     setMessages([{ role: 'assistant', content: text }]);
+                    setDebugInfo({ prompt, data: debugData });
                     setLoading(false);
 
                     // Auto-play TTS if enabled
@@ -229,6 +233,15 @@ const SceneDisplay = ({ data }) => {
                         {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                     </button>
 
+                    {/* Debug Toggle */}
+                    <button
+                        onClick={() => setShowDebug(!showDebug)}
+                        className={`p-2 rounded-lg transition-colors ${showDebug ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                        title="Toggle Debug Info"
+                    >
+                        <Bug size={16} />
+                    </button>
+
                     {/* STT Toggle */}
                     <button
                         onClick={() => setSttEnabled(!sttEnabled)}
@@ -246,6 +259,40 @@ const SceneDisplay = ({ data }) => {
                 </div>
             </div>
 
+            {showDebug && debugInfo && (
+                <div className="mb-4 p-3 bg-gray-950/80 border border-gray-800 rounded-xl overflow-hidden text-xs font-mono">
+                    <h3 className="text-pink-400 font-bold mb-2 flex items-center justify-between">
+                        <span>Debug Info</span>
+                        <div className="flex gap-2">
+                            <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2)); }} className="text-gray-500 hover:text-white" title="Copy All">
+                                <Copy size={12} />
+                            </button>
+                        </div>
+                    </h3>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <h4 className="text-gray-400 mb-1 font-bold flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider">
+                                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span> PAYLOAD</span>
+                                <button onClick={() => navigator.clipboard.writeText(JSON.stringify(debugInfo.data, null, 2))} className="hover:text-green-400 text-gray-600"><Copy size={10} /></button>
+                            </h4>
+                            <pre className="bg-gray-900/50 p-2 rounded-lg max-h-40 overflow-y-auto text-green-300 text-xs border border-gray-800/50 whitespace-pre-wrap font-mono shadow-inner leading-relaxed scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                                {JSON.stringify(debugInfo.data, null, 2)}
+                            </pre>
+                        </div>
+                        <div>
+                            <h4 className="text-gray-400 mb-1 font-bold flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider">
+                                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span> PROMPT</span>
+                                <button onClick={() => navigator.clipboard.writeText(debugInfo.prompt)} className="hover:text-blue-400 text-gray-600"><Copy size={10} /></button>
+                            </h4>
+                            <pre className="bg-gray-900/50 p-2 rounded-lg max-h-60 overflow-y-auto text-blue-300 whitespace-pre-wrap text-xs border border-gray-800/50 font-mono shadow-inner leading-relaxed scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                                {debugInfo.prompt}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-4 mb-4 space-y-4">
                 {loading ? (
@@ -261,8 +308,8 @@ const SceneDisplay = ({ data }) => {
                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                        ? 'bg-pink-900/40 border border-pink-500/30 text-pink-100'
-                                        : 'bg-gray-800/50 border border-gray-700/50 text-gray-300'
+                                    ? 'bg-pink-900/40 border border-pink-500/30 text-pink-100'
+                                    : 'bg-gray-800/50 border border-gray-700/50 text-gray-300'
                                     }`}>
                                     <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                         {msg.content}

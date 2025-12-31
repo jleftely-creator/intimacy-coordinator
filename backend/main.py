@@ -185,10 +185,103 @@ async def generate_scene(room_code: str, req: GenerateRequest = None):
     }
 
 
+# ============ MODEL MANAGEMENT ============
+import glob
+
+HOST_MODELS_PATH = os.getenv("HOST_MODELS_PATH", "F:\\TITAN_MODELS")
+CONTAINER_MODELS_PATH = "/models"
+
+@app.get("/api/models/files")
+async def list_model_files():
+    """List .gguf files available in the mounted models directory."""
+    try:
+        if not os.path.exists(CONTAINER_MODELS_PATH):
+            return {"files": [], "error": f"Path {CONTAINER_MODELS_PATH} not found"}
+            
+        files = glob.glob(os.path.join(CONTAINER_MODELS_PATH, "*.gguf"))
+        # Return just filenames sorted
+        return {"files": sorted([os.path.basename(f) for f in files])}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to list models: {str(e)}")
+
+@app.get("/api/models/tags")
+async def list_ollama_tags():
+    """Access Ollama API to list currently available models."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{OLLAMA_URL}/api/tags")
+            if r.status_code == 200:
+                data = r.json()
+                return {"models": [m['name'] for m in data.get('models', [])]}
+            return {"models": [], "error": f"Ollama returned {r.status_code}"}
+    except Exception as e:
+        return {"models": [], "error": f"Ollama unreachable: {str(e)}"}
+
+@app.post("/api/models/load")
+async def load_model(req: dict):
+    """
+    Load a GGUF file into Ollama. 
+    Since Ollama is on the Host, we use the FROM <host_path> syntax
+    to avoid slow blob uploads.
+    """
+    filename = req.get("filename")
+    model_name = req.get("model_name")
+    
+    if not filename or not model_name:
+        raise HTTPException(400, "filename and model_name required")
+
+    # 1. Verify file exists (in container view)
+    container_path = os.path.join(CONTAINER_MODELS_PATH, filename)
+    if not os.path.exists(container_path):
+        raise HTTPException(404, f"File {filename} not found")
+
+    # 2. Construct Host Path for the Host-side Ollama
+    host_path = f"{HOST_MODELS_PATH}/{filename}".replace("\\", "/")
+    
+    # 3. Create Modelfile string
+    # Standardizing to uppercase FROM with quotes for safety
+    modelfile = f'FROM "{host_path}"\n'
+    
+    print(f"DEBUG: Attempting Ollama create. Params: model={model_name}, host_path={host_path}")
+    print(f"DEBUG: Modelfile content: {repr(modelfile)}")
+
+    # 4. Call Ollama API
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            create_req = {
+                "model": model_name,
+                "modelfile": modelfile,
+                "stream": False
+            }
+            
+            response = await client.post(f"{OLLAMA_URL}/api/create", json=create_req)
+            
+            if response.status_code != 200:
+                err_data = response.text
+                print(f"DEBUG: Ollama error: {err_data}")
+                raise HTTPException(500, f"Ollama Error: {err_data} | Modelfile: {modelfile}")
+
+            return {"status": "success", "model": model_name}
+
+    except Exception as e:
+        print(f"DEBUG: Load exception: {str(e)}")
+        raise HTTPException(500, f"Load failed: {str(e)}")
+
+@app.get("/api/models/importer-script")
+async def get_importer_script():
+    """Serve the PowerShell importer script for host-side execution."""
+    script_path = "Import_GGUF_Model.ps1"
+    if os.path.exists(script_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(script_path, media_type="application/octet-stream", filename=script_path)
+    raise HTTPException(404, "Importer script not found")
+
+
 # ============ LLM GENERATION (Ollama) ============
 
 class LLMRequest(BaseModel):
     prompt: str
+    model: Optional[str] = None # Added model selection
     temperature: float = 1.2
     max_tokens: int = 4096
     top_p: float = 0.95
@@ -202,12 +295,14 @@ class LLMRequest(BaseModel):
 @app.post("/api/llm")
 async def generate_with_ollama(req: LLMRequest):
     """Send prompt to Ollama and return generated text."""
+    target_model = req.model if req.model else OLLAMA_MODEL
+    
     try:
         async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={
-                    "model": OLLAMA_MODEL,
+                    "model": target_model,
                     "prompt": req.prompt,
                     "stream": False,
                     "options": {
@@ -224,7 +319,7 @@ async def generate_with_ollama(req: LLMRequest):
             result = response.json()
             return {
                 "text": result.get("response", ""),
-                "model": OLLAMA_MODEL,
+                "model": target_model,
                 "done": result.get("done", True)
             }
     except httpx.RequestError as e:
